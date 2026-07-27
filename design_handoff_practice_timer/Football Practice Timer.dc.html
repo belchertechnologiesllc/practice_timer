@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap">
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>body{margin:0}</style>
+</helmet>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0b1a33"/><text x="50" y="58" font-size="34" font-family="sans-serif" font-weight="800" fill="#d4af37" text-anchor="middle">⏱</text></svg></template>
+<div style="min-height:960px;display:flex;align-items:flex-start;justify-content:center;padding:40px;background:#e7e5e2;font-family:system-ui,sans-serif">
+  <div style="width:390px;height:844px;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.25);background:{{ bg }};transition:background .2s;color:{{ text }}">
+
+    <div style="padding:24px 22px 14px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="uploads/LNYF_1-transparent.png" alt="Team logo" style="height:28px;width:auto;display:block">
+
+        <div style="font:800 12px Archivo,sans-serif;letter-spacing:0.1em;text-transform:uppercase;color:{{ text }}">{{ title }}</div>
+      </div>
+      <sc-if value="{{ isRunningPhase }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font:800 13px Archivo,sans-serif;color:{{ text }}">{{ blockNum }}</div>
+          <div style="font:600 11px Archivo,sans-serif;letter-spacing:0.06em;text-transform:uppercase;color:{{ mutedText }};cursor:pointer;border:1px solid {{ mutedText }};border-radius:6px;padding:4px 8px" onClick="{{ openEditor }}">Edit</div>
+          <div style="font:600 11px Archivo,sans-serif;letter-spacing:0.06em;text-transform:uppercase;color:{{ mutedText }};cursor:pointer;border:1px solid {{ mutedText }};border-radius:6px;padding:4px 8px" onClick="{{ newPractice }}">New</div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="padding:2px 22px 14px;display:flex;gap:8px">
+      <sc-for list="{{ themes }}" as="th" hint-placeholder-count="4">
+        <div style="width:22px;height:22px;border-radius:50%;background:{{ th.accent }};border:2px solid {{ th.swatchBorder }};cursor:pointer;box-sizing:border-box" onClick="{{ th.select }}"></div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;padding:0 22px 22px;display:flex;flex-direction:column;min-height:0">
+        <div style="font:800 14px Archivo,sans-serif;margin-bottom:10px">Set Up Practice</div>
+        <input type="text" value="{{ title }}" onChange="{{ setTitle }}" placeholder="Practice title" style="background:transparent;border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:{{ text }};font:700 13px Archivo,sans-serif;padding:9px;margin-bottom:10px" />
+        <div style="font:600 11px Archivo,sans-serif;letter-spacing:0.04em;color:{{ mutedText }};margin-bottom:6px">Import schedule from PDF or Excel (review after import)</div>
+        <input type="file" accept=".pdf,.xlsx,.xls" onChange="{{ handleFile }}" style="font:400 12px Archivo,sans-serif;color:{{ text }};margin-bottom:14px" />
+        <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ editorRows }}" as="row" hint-placeholder-count="16">
+            <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(128,128,128,0.2)">
+              <div style="width:20px;font:700 12px Archivo,sans-serif;color:{{ mutedText }}">{{ row.n }}</div>
+              <input type="text" value="{{ row.label }}" onChange="{{ row.setLabel }}" style="flex:1;background:transparent;border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:{{ text }};font:400 13px Archivo,sans-serif;padding:8px" />
+              <input type="number" value="{{ row.dur }}" onChange="{{ row.setDur }}" min="1" max="60" style="width:48px;background:transparent;border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:{{ text }};font:400 13px Archivo,sans-serif;padding:8px" />
+              <div style="font:400 10px Archivo,sans-serif;color:{{ mutedText }}">min</div>
+              <div style="font:800 14px Archivo,sans-serif;color:{{ mutedText }};cursor:pointer;padding:0 4px" onClick="{{ row.remove }}">×</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button style="flex:1;border-radius:8px;border:1px solid {{ mutedText }};background:transparent;color:{{ text }};font:700 13px Archivo,sans-serif;padding:12px;cursor:pointer" onClick="{{ addBlock }}">+ Add Block</button>
+          <button style="flex:2;border-radius:8px;border:none;background:{{ accent }};color:{{ accentText }};font:800 14px Archivo,sans-serif;padding:12px;cursor:pointer" onClick="{{ startPractice }}">Start Practice</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isRunningPhase }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;padding:22px;display:flex;flex-direction:column;justify-content:center;gap:16px;transition:background .2s;background:{{ mainBg }};color:{{ mainColor }}">
+      <div style="font:800 104px/1 Archivo,sans-serif;font-variant-numeric:tabular-nums">{{ mmss }}</div>
+      <div style="display:inline-flex;width:fit-content;padding:6px 12px;border-radius:6px;font:800 12px Archivo,sans-serif;letter-spacing:0.08em;text-transform:uppercase;background:{{ tagBg }};color:{{ tagColor }}">{{ blockLabel }}</div>
+      <div style="font:400 13px Archivo,sans-serif;color:{{ nextColor }}">{{ nextLabel }}</div>
+    </div>
+
+    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <div style="text-align:right;font:600 11px Archivo,sans-serif;letter-spacing:0.06em;text-transform:uppercase;color:{{ mutedText }};cursor:pointer" onClick="{{ toggleSound }}">{{ soundLabel }}</div>
+      <div style="display:flex;gap:12px">
+        <button style="flex:1;border-radius:8px;border:1px solid {{ text }};background:transparent;color:{{ text }};font:800 14px Archivo,sans-serif;padding:14px 16px;cursor:pointer" onClick="{{ back }}">Back</button>
+        <button style="flex:2;border-radius:8px;border:none;background:{{ accent }};color:{{ accentText }};font:800 14px Archivo,sans-serif;padding:14px 16px;cursor:pointer" onClick="{{ toggle }}">{{ pauseLabel }}</button>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showEditor }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10">
+      <div style="width:390px;max-height:844px;overflow-y:auto;background:{{ bg }};color:{{ text }};border-radius:16px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font:800 15px Archivo,sans-serif">Edit Schedule</div>
+          <button style="border:none;background:{{ accent }};color:{{ accentText }};font:800 12px Archivo,sans-serif;padding:8px 14px;border-radius:6px;cursor:pointer" onClick="{{ closeEditor }}">Done</button>
+        </div>
+        <button style="width:100%;border-radius:8px;border:1px solid {{ mutedText }};background:transparent;color:{{ text }};font:700 13px Archivo,sans-serif;padding:10px;cursor:pointer;margin-bottom:10px" onClick="{{ addBlock }}">+ Add Block</button>
+        <sc-for list="{{ editorRows }}" as="row" hint-placeholder-count="16">
+          <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(128,128,128,0.2)">
+            <div style="width:22px;font:700 12px Archivo,sans-serif;color:{{ mutedText }}">{{ row.n }}</div>
+            <input type="text" value="{{ row.label }}" onChange="{{ row.setLabel }}" style="flex:1;background:transparent;border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:{{ text }};font:400 13px Archivo,sans-serif;padding:8px" />
+            <input type="number" value="{{ row.dur }}" onChange="{{ row.setDur }}" min="1" max="60" style="width:52px;background:transparent;border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:{{ text }};font:400 13px Archivo,sans-serif;padding:8px" />
+            <div style="font:400 11px Archivo,sans-serif;color:{{ mutedText }}">min</div>
+            <div style="font:800 14px Archivo,sans-serif;color:{{ mutedText }};cursor:pointer;padding:0 4px" onClick="{{ row.remove }}">×</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:470,&quot;height&quot;:900},&quot;defaultTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;navyGold&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;navyGold&quot;,&quot;crimson&quot;,&quot;steel&quot;,&quot;slate&quot;]}}">
+const BLOCKS = [
+  { n: 1, dur: 5, label: 'Introductions' },
+  { n: 2, dur: 10, label: 'Warm-Ups & Parent Meeting' },
+  { n: 3, dur: 5, label: 'Water Break' },
+  { n: 4, dur: 10, label: 'Group Rotation: Dash / Handoffs / Snap' },
+  { n: 5, dur: 5, label: 'Water Break' },
+  { n: 6, dur: 10, label: 'Drill Rotation' },
+  { n: 7, dur: 5, label: 'Water Break' },
+  { n: 8, dur: 10, label: 'Drill Rotation' },
+  { n: 9, dur: 5, label: 'Water Break' },
+  { n: 10, dur: 10, label: 'Drill Rotation' },
+  { n: 11, dur: 5, label: 'Water Break' },
+  { n: 12, dur: 10, label: 'Drill Rotation' },
+  { n: 13, dur: 5, label: 'Water Break' },
+  { n: 14, dur: 10, label: 'Drill Rotation' },
+  { n: 15, dur: 5, label: 'Water Break' },
+  { n: 16, dur: 10, label: 'Relay Race & Break Down' },
+];
+
+const THEMES = {
+  navyGold: { id: 'navyGold', bg: '#0b1a33', text: '#f4efe2', accent: '#d4af37', accentText: '#0b1a33', muted: 'rgba(244,239,226,0.55)', tagBg: 'rgba(212,175,55,0.16)', tagColor: '#d4af37' },
+  crimson: { id: 'crimson', bg: '#f5f2ef', text: '#1c1a19', accent: '#c81d25', accentText: '#fff', muted: 'rgba(28,26,25,0.55)', tagBg: '#fbe4e4', tagColor: '#a3161c' },
+  steel: { id: 'steel', bg: '#eef1f4', text: '#16202c', accent: '#3a6ea5', accentText: '#fff', muted: 'rgba(22,32,44,0.55)', tagBg: '#dde6ef', tagColor: '#2c567f' },
+  slate: { id: 'slate', bg: '#161826', text: '#e9e9ed', accent: '#9184d9', accentText: '#161826', muted: 'rgba(233,233,237,0.5)', tagBg: 'rgba(145,132,217,0.18)', tagColor: '#b3aae8' },
+};
+const THEME_ORDER = ['navyGold', 'crimson', 'steel', 'slate'];
+
+class Component extends DCLogic {
+  state = {
+    theme: this.props.defaultTheme || 'navyGold',
+    blocks: BLOCKS.map((b) => ({ ...b })),
+    title: 'Practice #1 — 7/28',
+    phase: 'setup',
+    i: 0, secs: BLOCKS[0].dur * 60, running: false, sound: true,
+    showEditor: false,
+  };
+
+  setTitle(val) { this.setState({ title: val }); }
+
+  timeToMinutes(str, tstate) {
+    let hour, min;
+    if (str.startsWith(':')) {
+      min = parseInt(str.slice(1), 10);
+      hour = tstate.hour != null ? tstate.hour : 18;
+    } else if (str.includes(':')) {
+      const [h, m] = str.split(':').map(Number);
+      hour = h < 12 ? h + 12 : h;
+      min = m;
+    } else {
+      return null;
+    }
+    if (Number.isNaN(hour) || Number.isNaN(min)) return null;
+    if (tstate.lastMin != null && min < tstate.lastMin) hour += 1;
+    tstate.hour = hour;
+    tstate.lastMin = min;
+    return hour * 60 + min;
+  }
+
+  importFromText(text) {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const re = /^(\d{1,2})\s+(:?\d{1,2}(?::\d{2})?)\s*(.*)$/;
+    const tstate = { hour: null, lastMin: null };
+    const entries = [];
+    for (const line of lines) {
+      const m = line.match(re);
+      if (!m) continue;
+      const minutes = this.timeToMinutes(m[2], tstate);
+      if (minutes == null) continue;
+      const rawLabel = m[3].split(/\t+|\s{2,}/).map((s) => s.trim()).filter(Boolean).join(' / ');
+      entries.push({ minutes, label: rawLabel });
+    }
+    if (!entries.length) {
+      alert('Could not detect a schedule in that file — try editing blocks manually below.');
+      return;
+    }
+    const blocks = entries.map((e, i) => {
+      const nextMinutes = i + 1 < entries.length ? entries[i + 1].minutes : e.minutes + 10;
+      const dur = Math.max(1, Math.min(60, nextMinutes - e.minutes || 10));
+      let label = e.label || 'Drill Rotation';
+      if (/^water$/i.test(label)) label = 'Water Break';
+      return { n: i + 1, dur, label };
+    });
+    this.setState({ blocks, phase: 'setup', i: 0, secs: blocks[0].dur * 60, running: false });
+  }
+
+  importFromRows(rows) {
+    const text = rows.map((r) => r.map((c) => (c == null ? '' : String(c))).join('\t')).join('\n');
+    this.importFromText(text);
+  }
+
+  async handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    try {
+      if (name.endsWith('.pdf')) {
+        const { PDFParse } = await import('https://cdn.jsdelivr.net/npm/pdf-parse@2.4.5/dist/pdf-parse/web/pdf-parse.es.js');
+        PDFParse.setWorker('https://cdn.jsdelivr.net/npm/pdf-parse@2.4.5/dist/pdf-parse/web/pdf.worker.min.mjs');
+        const buf = await file.arrayBuffer();
+        const parser = new PDFParse({ data: new Uint8Array(buf) });
+        const result = await parser.getText();
+        this.importFromText(result.text);
+      } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        const buf = await file.arrayBuffer();
+        const wb = window.XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+        this.importFromRows(rows);
+      } else {
+        alert('Please upload a PDF or Excel (.xlsx) file.');
+      }
+    } catch (err) {
+      alert('Could not read that file — you can still edit the schedule manually below.');
+    }
+    e.target.value = '';
+  }
+
+  componentDidMount() {
+    this._interval = setInterval(() => this.tick(), 1000);
+  }
+  componentWillUnmount() {
+    if (this._interval) clearInterval(this._interval);
+  }
+
+  beep(freq) {
+    try {
+      this._ctx = this._ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = this._ctx.createOscillator();
+      const gain = this._ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, this._ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.18);
+      osc.connect(gain).connect(this._ctx.destination);
+      osc.start();
+      osc.stop(this._ctx.currentTime + 0.2);
+    } catch (e) {}
+  }
+
+  tick() {
+    this.setState((s) => {
+      if (!s.running || s.phase !== 'running') return {};
+      if (s.secs <= 1) {
+        const nextI = Math.min(s.i + 1, s.blocks.length - 1);
+        if (s.sound) this.beep(880);
+        return { i: nextI, secs: s.blocks[nextI].dur * 60 };
+      }
+      if (s.secs <= 4 && s.sound) this.beep(520);
+      return { secs: s.secs - 1 };
+    });
+  }
+
+  toggle() { this.setState((s) => ({ running: !s.running })); }
+  back() {
+    this.setState((s) => {
+      const prevI = Math.max(s.i - 1, 0);
+      return { i: prevI, secs: s.blocks[prevI].dur * 60 };
+    });
+  }
+  toggleSound() { this.setState((s) => ({ sound: !s.sound })); }
+  setTheme(id) { this.setState({ theme: id }); }
+
+  openEditor() { this.setState({ showEditor: true, running: false }); }
+  closeEditor() {
+    this.setState((s) => ({ showEditor: false, secs: s.blocks[Math.min(s.i, s.blocks.length - 1)].dur * 60 }));
+  }
+  setBlockLabel(idx, val) {
+    this.setState((s) => {
+      const blocks = s.blocks.map((b, j) => (j === idx ? { ...b, label: val } : b));
+      return { blocks };
+    });
+  }
+  setBlockDur(idx, val) {
+    const dur = Math.max(1, Math.min(60, parseInt(val, 10) || 1));
+    this.setState((s) => {
+      const blocks = s.blocks.map((b, j) => (j === idx ? { ...b, dur } : b));
+      return { blocks };
+    });
+  }
+  addBlock() {
+    this.setState((s) => ({ blocks: [...s.blocks, { n: s.blocks.length + 1, dur: 5, label: 'New Block' }] }));
+  }
+  removeBlock(idx) {
+    this.setState((s) => {
+      const blocks = s.blocks.filter((_, j) => j !== idx).map((b, j) => ({ ...b, n: j + 1 }));
+      const i = Math.min(s.i, Math.max(blocks.length - 1, 0));
+      return { blocks, i, secs: blocks.length ? blocks[i].dur * 60 : 0 };
+    });
+  }
+  startPractice() {
+    this.setState((s) => ({ phase: 'running', i: 0, secs: s.blocks[0].dur * 60, running: true }));
+  }
+  newPractice() {
+    this.setState({
+      blocks: BLOCKS.map((b) => ({ ...b })),
+      title: 'Practice #1 — 7/28',
+      phase: 'setup', i: 0, secs: BLOCKS[0].dur * 60, running: false, showEditor: false,
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const th = THEMES[s.theme] || THEMES.navyGold;
+    const b = s.blocks[s.i];
+    const next = s.blocks[s.i + 1];
+    const mm = String(Math.floor(s.secs / 60)).padStart(2, '0');
+    const ss = String(s.secs % 60).padStart(2, '0');
+    const isAlert = s.secs <= 5;
+
+    return {
+      bg: th.bg, text: th.text, accent: th.accent, accentText: th.accentText, mutedText: th.muted,
+      blockNum: `Block ${b.n} / ${s.blocks.length}`,
+      isSetup: s.phase === 'setup',
+      isRunningPhase: s.phase === 'running',
+      startPractice: () => this.startPractice(),
+      addBlock: () => this.addBlock(),
+      newPractice: () => this.newPractice(),
+      title: s.title,
+      setTitle: (e) => this.setTitle(e.target.value),
+      handleFile: (e) => this.handleFile(e),
+      showEditor: s.showEditor,
+      openEditor: () => this.openEditor(),
+      closeEditor: () => this.closeEditor(),
+      editorRows: s.blocks.map((bl, idx) => ({
+        n: bl.n, label: bl.label, dur: bl.dur,
+        setLabel: (e) => this.setBlockLabel(idx, e.target.value),
+        setDur: (e) => this.setBlockDur(idx, e.target.value),
+        remove: () => this.removeBlock(idx),
+      })),
+      mmss: `${mm}:${ss}`,
+      blockLabel: b.label,
+      nextLabel: next ? `Next: Block ${next.n} — ${next.label}` : 'Final block',
+      mainBg: isAlert ? th.accent : 'transparent',
+      mainColor: isAlert ? th.accentText : th.text,
+      tagBg: isAlert ? 'rgba(255,255,255,0.2)' : th.tagBg,
+      tagColor: isAlert ? th.accentText : th.tagColor,
+      nextColor: isAlert ? th.accentText : th.muted,
+      pauseLabel: s.running ? 'Pause' : 'Resume',
+      soundLabel: s.sound ? 'Sound On' : 'Sound Off',
+      toggle: () => this.toggle(),
+      back: () => this.back(),
+      toggleSound: () => this.toggleSound(),
+      themes: THEME_ORDER.map((id) => ({
+        accent: THEMES[id].accent,
+        swatchBorder: s.theme === id ? th.text : 'transparent',
+        select: () => this.setTheme(id),
+      })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
