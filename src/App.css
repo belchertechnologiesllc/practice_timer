@@ -143,6 +143,39 @@
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  background: var(--bg);
+  position: relative;
+  z-index: 1;
+}
+
+.row-dragging {
+  z-index: 2;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+.row-handle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.5;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: grab;
+  touch-action: none;
+  padding: 0;
+  margin-left: -6px;
+}
+
+.row-handle:active {
+  cursor: grabbing;
+  opacity: 0.9;
 }
 
 .row-n {

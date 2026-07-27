@@ -10,6 +10,7 @@ interface Props {
   onLabelChange: (idx: number, val: string) => void;
   onDurChange: (idx: number, val: string) => void;
   onRemove: (idx: number) => void;
+  onReorder: (fromIdx: number, toIdx: number) => void;
   onAddBlock: () => void;
   onStart: () => void;
   onImport: (blocks: Block[]) => void;
@@ -22,6 +23,7 @@ export function SetupScreen({
   onLabelChange,
   onDurChange,
   onRemove,
+  onReorder,
   onAddBlock,
   onStart,
   onImport,
@@ -75,6 +77,7 @@ export function SetupScreen({
           onLabelChange={onLabelChange}
           onDurChange={onDurChange}
           onRemove={onRemove}
+          onReorder={onReorder}
         />
       </div>
       <div className="footer-buttons">

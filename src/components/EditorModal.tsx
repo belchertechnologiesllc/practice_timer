@@ -6,11 +6,12 @@ interface Props {
   onLabelChange: (idx: number, val: string) => void;
   onDurChange: (idx: number, val: string) => void;
   onRemove: (idx: number) => void;
+  onReorder: (fromIdx: number, toIdx: number) => void;
   onAddBlock: () => void;
   onDone: () => void;
 }
 
-export function EditorModal({ blocks, onLabelChange, onDurChange, onRemove, onAddBlock, onDone }: Props) {
+export function EditorModal({ blocks, onLabelChange, onDurChange, onRemove, onReorder, onAddBlock, onDone }: Props) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
@@ -29,6 +30,7 @@ export function EditorModal({ blocks, onLabelChange, onDurChange, onRemove, onAd
             onLabelChange={onLabelChange}
             onDurChange={onDurChange}
             onRemove={onRemove}
+            onReorder={onReorder}
           />
         </div>
       </div>

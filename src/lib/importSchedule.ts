@@ -52,7 +52,7 @@ export function parseScheduleText(text: string): Block[] | null {
     const dur = Math.max(1, Math.min(60, nextMinutes - e.minutes || 10));
     let label = e.label || 'Drill Rotation';
     if (/^water$/i.test(label)) label = 'Water Break';
-    return { n: i + 1, dur, label };
+    return { id: crypto.randomUUID(), n: i + 1, dur, label };
   });
 }
 

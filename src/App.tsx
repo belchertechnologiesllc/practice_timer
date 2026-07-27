@@ -1,7 +1,8 @@
 import { useEffect, useReducer, useRef } from 'react';
 import type { CSSProperties } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
 import type { Block, Phase, ThemeId } from './types';
-import { DEFAULT_BLOCKS, DEFAULT_TITLE } from './defaultSchedule';
+import { createDefaultBlocks, DEFAULT_TITLE } from './defaultSchedule';
 import { THEMES } from './theme';
 import { useBeeper } from './hooks/useBeeper';
 import { useWakeLock } from './hooks/useWakeLock';
@@ -23,17 +24,18 @@ interface State {
   sound: boolean;
   showEditor: boolean;
   beepSeq: number;
-  beepKind: 'tick' | 'advance' | null;
+  beepKind: 'warn' | 'tick' | 'advance' | null;
 }
 
 function freshState(): State {
+  const blocks = createDefaultBlocks();
   return {
     theme: 'navyGold',
-    blocks: DEFAULT_BLOCKS.map((b) => ({ ...b })),
+    blocks,
     title: DEFAULT_TITLE,
     phase: 'setup',
     i: 0,
-    secs: DEFAULT_BLOCKS[0].dur * 60,
+    secs: blocks[0].dur * 60,
     running: false,
     sound: true,
     showEditor: false,
@@ -49,6 +51,7 @@ type Action =
   | { type: 'SET_BLOCK_DUR'; idx: number; val: string }
   | { type: 'ADD_BLOCK' }
   | { type: 'REMOVE_BLOCK'; idx: number }
+  | { type: 'REORDER_BLOCKS'; fromIdx: number; toIdx: number }
   | { type: 'IMPORT_BLOCKS'; blocks: Block[] }
   | { type: 'START_PRACTICE' }
   | { type: 'NEW_PRACTICE' }
@@ -58,6 +61,14 @@ type Action =
   | { type: 'OPEN_EDITOR' }
   | { type: 'CLOSE_EDITOR' }
   | { type: 'TICK'; elapsedSec: number };
+
+/** Keeps `i` pointing at the same logical block (by id) after the list is added to, removed from, or reordered. */
+function reindexAfterChange(prevBlocks: Block[], prevIndex: number, newBlocks: Block[]): number {
+  const currentId = prevBlocks[prevIndex]?.id;
+  const found = currentId ? newBlocks.findIndex((b) => b.id === currentId) : -1;
+  if (found !== -1) return found;
+  return Math.max(Math.min(prevIndex, newBlocks.length - 1), 0);
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -80,11 +91,19 @@ function reducer(state: State, action: Action): State {
     case 'ADD_BLOCK':
       return {
         ...state,
-        blocks: [...state.blocks, { n: state.blocks.length + 1, dur: 5, label: 'New Block' }],
+        blocks: [
+          ...state.blocks,
+          { id: crypto.randomUUID(), n: state.blocks.length + 1, dur: 5, label: 'New Block' },
+        ],
       };
     case 'REMOVE_BLOCK': {
       const blocks = state.blocks.filter((_, j) => j !== action.idx).map((b, j) => ({ ...b, n: j + 1 }));
-      const i = Math.min(state.i, Math.max(blocks.length - 1, 0));
+      const i = reindexAfterChange(state.blocks, state.i, blocks);
+      return { ...state, blocks, i, secs: blocks.length ? blocks[i].dur * 60 : 0 };
+    }
+    case 'REORDER_BLOCKS': {
+      const blocks = arrayMove(state.blocks, action.fromIdx, action.toIdx).map((b, j) => ({ ...b, n: j + 1 }));
+      const i = reindexAfterChange(state.blocks, state.i, blocks);
       return { ...state, blocks, i, secs: blocks.length ? blocks[i].dur * 60 : 0 };
     }
     case 'IMPORT_BLOCKS':
@@ -120,7 +139,7 @@ function reducer(state: State, action: Action): State {
       if (elapsed <= 0) return state;
       let i = state.i;
       let secs = state.secs;
-      let beepKind: 'tick' | 'advance' | null = null;
+      let beepKind: 'warn' | 'tick' | 'advance' | null = null;
       const lastIdx = state.blocks.length - 1;
 
       if (elapsed === 1) {
@@ -133,7 +152,8 @@ function reducer(state: State, action: Action): State {
             secs = 0;
           }
         } else {
-          if (secs <= 4) beepKind = 'tick';
+          if (secs === 15) beepKind = 'warn';
+          else if (secs <= 4) beepKind = 'tick';
           secs -= 1;
         }
       } else {
@@ -170,15 +190,16 @@ function reducer(state: State, action: Action): State {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, undefined, freshState);
-  const beep = useBeeper();
+  const { beep, unlock } = useBeeper();
   const lastTickRef = useRef<number>(Date.now());
 
   useWakeLock(state.phase === 'running' && state.running);
 
   useEffect(() => {
-    if (state.beepKind && state.sound) {
-      beep(state.beepKind === 'advance' ? 880 : 520);
-    }
+    if (!state.beepKind || !state.sound) return;
+    if (state.beepKind === 'advance') beep(880);
+    else if (state.beepKind === 'warn') beep(660, 2);
+    else beep(520);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.beepSeq]);
 
@@ -247,8 +268,12 @@ function App() {
           onLabelChange={(idx, val) => dispatch({ type: 'SET_BLOCK_LABEL', idx, val })}
           onDurChange={(idx, val) => dispatch({ type: 'SET_BLOCK_DUR', idx, val })}
           onRemove={(idx) => dispatch({ type: 'REMOVE_BLOCK', idx })}
+          onReorder={(fromIdx, toIdx) => dispatch({ type: 'REORDER_BLOCKS', fromIdx, toIdx })}
           onAddBlock={() => dispatch({ type: 'ADD_BLOCK' })}
-          onStart={() => dispatch({ type: 'START_PRACTICE' })}
+          onStart={() => {
+            unlock();
+            dispatch({ type: 'START_PRACTICE' });
+          }}
           onImport={(blocks) => dispatch({ type: 'IMPORT_BLOCKS', blocks })}
         />
       )}
@@ -261,7 +286,10 @@ function App() {
           secs={state.secs}
           running={state.running}
           sound={state.sound}
-          onToggleRun={() => dispatch({ type: 'TOGGLE_RUN' })}
+          onToggleRun={() => {
+            unlock();
+            dispatch({ type: 'TOGGLE_RUN' });
+          }}
           onBack={() => dispatch({ type: 'BACK' })}
           onToggleSound={() => dispatch({ type: 'TOGGLE_SOUND' })}
         />
@@ -273,6 +301,7 @@ function App() {
           onLabelChange={(idx, val) => dispatch({ type: 'SET_BLOCK_LABEL', idx, val })}
           onDurChange={(idx, val) => dispatch({ type: 'SET_BLOCK_DUR', idx, val })}
           onRemove={(idx) => dispatch({ type: 'REMOVE_BLOCK', idx })}
+          onReorder={(fromIdx, toIdx) => dispatch({ type: 'REORDER_BLOCKS', fromIdx, toIdx })}
           onAddBlock={() => dispatch({ type: 'ADD_BLOCK' })}
           onDone={() => dispatch({ type: 'CLOSE_EDITOR' })}
         />
