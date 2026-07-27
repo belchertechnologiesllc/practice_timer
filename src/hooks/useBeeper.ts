@@ -14,21 +14,18 @@ function getAudioCtx(ctxRef: RefObject<AudioContext | null>): AudioContext {
 export function useBeeper() {
   const ctxRef = useRef<AudioContext | null>(null);
 
-  const beep = useCallback((freq: number, pulses = 1) => {
+  const beep = useCallback((freq: number) => {
     try {
       const ctx = getAudioCtx(ctxRef);
       if (ctx.state === 'suspended') void ctx.resume();
-      for (let p = 0; p < pulses; p++) {
-        const startAt = ctx.currentTime + p * 0.22;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.08, startAt);
-        gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.18);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(startAt);
-        osc.stop(startAt + 0.2);
-      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
     } catch {
       // Web Audio unavailable — sound is a nice-to-have, never block the timer on it.
     }

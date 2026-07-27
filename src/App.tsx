@@ -1,20 +1,19 @@
 import { useEffect, useReducer, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
-import type { Block, Phase, ThemeId } from './types';
+import type { Block, Phase } from './types';
 import { createDefaultBlocks, DEFAULT_TITLE } from './defaultSchedule';
-import { THEMES } from './theme';
+import { THEME } from './theme';
 import { useBeeper } from './hooks/useBeeper';
+import { useCountdownAudio } from './hooks/useCountdownAudio';
 import { useWakeLock } from './hooks/useWakeLock';
 import { Header } from './components/Header';
-import { ThemeSwatches } from './components/ThemeSwatches';
 import { SetupScreen } from './components/SetupScreen';
 import { RunningScreen } from './components/RunningScreen';
 import { EditorModal } from './components/EditorModal';
 import './App.css';
 
 interface State {
-  theme: ThemeId;
   blocks: Block[];
   title: string;
   phase: Phase;
@@ -24,13 +23,12 @@ interface State {
   sound: boolean;
   showEditor: boolean;
   beepSeq: number;
-  beepKind: 'warn' | 'tick' | 'advance' | null;
+  beepKind: 'warn' | 'advance' | null;
 }
 
 function freshState(): State {
   const blocks = createDefaultBlocks();
   return {
-    theme: 'navyGold',
     blocks,
     title: DEFAULT_TITLE,
     phase: 'setup',
@@ -46,7 +44,6 @@ function freshState(): State {
 
 type Action =
   | { type: 'SET_TITLE'; val: string }
-  | { type: 'SET_THEME'; id: ThemeId }
   | { type: 'SET_BLOCK_LABEL'; idx: number; val: string }
   | { type: 'SET_BLOCK_DUR'; idx: number; val: string }
   | { type: 'ADD_BLOCK' }
@@ -75,8 +72,6 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'SET_TITLE':
       return { ...state, title: action.val };
-    case 'SET_THEME':
-      return { ...state, theme: action.id };
     case 'SET_BLOCK_LABEL':
       return {
         ...state,
@@ -119,7 +114,7 @@ function reducer(state: State, action: Action): State {
     case 'START_PRACTICE':
       return { ...state, phase: 'running', i: 0, secs: state.blocks[0].dur * 60, running: true };
     case 'NEW_PRACTICE':
-      return { ...freshState(), theme: state.theme };
+      return freshState();
     case 'TOGGLE_RUN':
       return { ...state, running: !state.running };
     case 'BACK': {
@@ -152,7 +147,7 @@ function reducer(state: State, action: Action): State {
       if (elapsed <= 0) return state;
       let i = state.i;
       let secs = state.secs;
-      let beepKind: 'warn' | 'tick' | 'advance' | null = null;
+      let beepKind: 'warn' | 'advance' | null = null;
       const lastIdx = state.blocks.length - 1;
 
       if (elapsed === 1) {
@@ -166,7 +161,6 @@ function reducer(state: State, action: Action): State {
           }
         } else {
           if (secs === 15) beepKind = 'warn';
-          else if (secs <= 4) beepKind = 'tick';
           secs -= 1;
         }
       } else {
@@ -203,16 +197,21 @@ function reducer(state: State, action: Action): State {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, undefined, freshState);
-  const { beep, unlock } = useBeeper();
+  const { beep, unlock: unlockBeep } = useBeeper();
+  const { play: playCountdown, unlock: unlockCountdown } = useCountdownAudio();
   const lastTickRef = useRef<number>(Date.now());
 
   useWakeLock(state.phase === 'running' && state.running);
 
+  function unlockAudio() {
+    unlockBeep();
+    unlockCountdown();
+  }
+
   useEffect(() => {
     if (!state.beepKind || !state.sound) return;
     if (state.beepKind === 'advance') beep(880);
-    else if (state.beepKind === 'warn') beep(660, 2);
-    else beep(520);
+    else if (state.beepKind === 'warn') playCountdown();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.beepSeq]);
 
@@ -236,7 +235,7 @@ function App() {
     };
   }, [state.phase, state.running]);
 
-  const theme = THEMES[state.theme];
+  const theme = THEME;
   const block = state.blocks[state.i];
   const next = state.blocks[state.i + 1];
   const isRunningPhase = state.phase === 'running';
@@ -271,8 +270,6 @@ function App() {
         onNew={handleNewPractice}
       />
 
-      <ThemeSwatches theme={state.theme} onSelect={(id) => dispatch({ type: 'SET_THEME', id })} />
-
       {state.phase === 'setup' && (
         <SetupScreen
           title={state.title}
@@ -284,7 +281,7 @@ function App() {
           onReorder={(fromIdx, toIdx) => dispatch({ type: 'REORDER_BLOCKS', fromIdx, toIdx })}
           onAddBlock={() => dispatch({ type: 'ADD_BLOCK' })}
           onStart={() => {
-            unlock();
+            unlockAudio();
             dispatch({ type: 'START_PRACTICE' });
           }}
           onImport={(blocks) => dispatch({ type: 'IMPORT_BLOCKS', blocks })}
@@ -300,7 +297,7 @@ function App() {
           running={state.running}
           sound={state.sound}
           onToggleRun={() => {
-            unlock();
+            unlockAudio();
             dispatch({ type: 'TOGGLE_RUN' });
           }}
           onBack={() => dispatch({ type: 'BACK' })}

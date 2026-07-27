@@ -16,8 +16,8 @@ Design reference: [`design_handoff_practice_timer/`](./design_handoff_practice_t
 
 - Editable schedule: any number of blocks, 1–60 min each, drag-to-reorder in both the setup screen and the mid-practice editor.
 - Import a schedule from an uploaded PDF or Excel file (best-effort — review after import).
-- Four color themes, switchable instantly.
-- Sound warning at 15 seconds remaining in a block, plus the full-screen color + sound alert in the last 5 seconds, and a beep on block change.
+- Navy/gold color theme.
+- A countdown audio clip plays at 15 seconds remaining in a block, plus the full-screen color alert in the last 5 seconds and a beep on block change.
 - Pause/Resume, Back (restart previous block), Skip (end the current block early and jump to the next), and mid-practice schedule editing.
 - Keeps the screen awake while a practice is running (Screen Wake Lock API).
 - Timestamp-based countdown that resyncs correctly after the phone locks or the tab is backgrounded.
