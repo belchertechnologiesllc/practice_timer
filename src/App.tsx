@@ -1,0 +1,284 @@
+import { useEffect, useReducer, useRef } from 'react';
+import type { CSSProperties } from 'react';
+import type { Block, Phase, ThemeId } from './types';
+import { DEFAULT_BLOCKS, DEFAULT_TITLE } from './defaultSchedule';
+import { THEMES } from './theme';
+import { useBeeper } from './hooks/useBeeper';
+import { useWakeLock } from './hooks/useWakeLock';
+import { Header } from './components/Header';
+import { ThemeSwatches } from './components/ThemeSwatches';
+import { SetupScreen } from './components/SetupScreen';
+import { RunningScreen } from './components/RunningScreen';
+import { EditorModal } from './components/EditorModal';
+import './App.css';
+
+interface State {
+  theme: ThemeId;
+  blocks: Block[];
+  title: string;
+  phase: Phase;
+  i: number;
+  secs: number;
+  running: boolean;
+  sound: boolean;
+  showEditor: boolean;
+  beepSeq: number;
+  beepKind: 'tick' | 'advance' | null;
+}
+
+function freshState(): State {
+  return {
+    theme: 'navyGold',
+    blocks: DEFAULT_BLOCKS.map((b) => ({ ...b })),
+    title: DEFAULT_TITLE,
+    phase: 'setup',
+    i: 0,
+    secs: DEFAULT_BLOCKS[0].dur * 60,
+    running: false,
+    sound: true,
+    showEditor: false,
+    beepSeq: 0,
+    beepKind: null,
+  };
+}
+
+type Action =
+  | { type: 'SET_TITLE'; val: string }
+  | { type: 'SET_THEME'; id: ThemeId }
+  | { type: 'SET_BLOCK_LABEL'; idx: number; val: string }
+  | { type: 'SET_BLOCK_DUR'; idx: number; val: string }
+  | { type: 'ADD_BLOCK' }
+  | { type: 'REMOVE_BLOCK'; idx: number }
+  | { type: 'IMPORT_BLOCKS'; blocks: Block[] }
+  | { type: 'START_PRACTICE' }
+  | { type: 'NEW_PRACTICE' }
+  | { type: 'TOGGLE_RUN' }
+  | { type: 'BACK' }
+  | { type: 'TOGGLE_SOUND' }
+  | { type: 'OPEN_EDITOR' }
+  | { type: 'CLOSE_EDITOR' }
+  | { type: 'TICK'; elapsedSec: number };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'SET_TITLE':
+      return { ...state, title: action.val };
+    case 'SET_THEME':
+      return { ...state, theme: action.id };
+    case 'SET_BLOCK_LABEL':
+      return {
+        ...state,
+        blocks: state.blocks.map((b, j) => (j === action.idx ? { ...b, label: action.val } : b)),
+      };
+    case 'SET_BLOCK_DUR': {
+      const dur = Math.max(1, Math.min(60, parseInt(action.val, 10) || 1));
+      return {
+        ...state,
+        blocks: state.blocks.map((b, j) => (j === action.idx ? { ...b, dur } : b)),
+      };
+    }
+    case 'ADD_BLOCK':
+      return {
+        ...state,
+        blocks: [...state.blocks, { n: state.blocks.length + 1, dur: 5, label: 'New Block' }],
+      };
+    case 'REMOVE_BLOCK': {
+      const blocks = state.blocks.filter((_, j) => j !== action.idx).map((b, j) => ({ ...b, n: j + 1 }));
+      const i = Math.min(state.i, Math.max(blocks.length - 1, 0));
+      return { ...state, blocks, i, secs: blocks.length ? blocks[i].dur * 60 : 0 };
+    }
+    case 'IMPORT_BLOCKS':
+      return {
+        ...state,
+        blocks: action.blocks,
+        phase: 'setup',
+        i: 0,
+        secs: action.blocks[0].dur * 60,
+        running: false,
+      };
+    case 'START_PRACTICE':
+      return { ...state, phase: 'running', i: 0, secs: state.blocks[0].dur * 60, running: true };
+    case 'NEW_PRACTICE':
+      return { ...freshState(), theme: state.theme };
+    case 'TOGGLE_RUN':
+      return { ...state, running: !state.running };
+    case 'BACK': {
+      const prevI = Math.max(state.i - 1, 0);
+      return { ...state, i: prevI, secs: state.blocks[prevI].dur * 60 };
+    }
+    case 'TOGGLE_SOUND':
+      return { ...state, sound: !state.sound };
+    case 'OPEN_EDITOR':
+      return { ...state, showEditor: true, running: false };
+    case 'CLOSE_EDITOR': {
+      const i = Math.max(Math.min(state.i, state.blocks.length - 1), 0);
+      return { ...state, i, showEditor: false, secs: state.blocks.length ? state.blocks[i].dur * 60 : 0 };
+    }
+    case 'TICK': {
+      if (!state.running || state.phase !== 'running') return state;
+      const elapsed = action.elapsedSec;
+      if (elapsed <= 0) return state;
+      let i = state.i;
+      let secs = state.secs;
+      let beepKind: 'tick' | 'advance' | null = null;
+      const lastIdx = state.blocks.length - 1;
+
+      if (elapsed === 1) {
+        if (secs <= 1) {
+          if (i < lastIdx) {
+            i += 1;
+            secs = state.blocks[i].dur * 60;
+            beepKind = 'advance';
+          } else {
+            secs = 0;
+          }
+        } else {
+          if (secs <= 4) beepKind = 'tick';
+          secs -= 1;
+        }
+      } else {
+        // Catching up after the tab/screen was backgrounded — fast-forward
+        // silently rather than replaying every missed second's beep.
+        let remaining = elapsed;
+        while (remaining > 0) {
+          if (secs > remaining) {
+            secs -= remaining;
+            remaining = 0;
+          } else if (i < lastIdx) {
+            remaining -= secs;
+            i += 1;
+            secs = state.blocks[i].dur * 60;
+          } else {
+            secs = 0;
+            remaining = 0;
+          }
+        }
+      }
+
+      return {
+        ...state,
+        i,
+        secs,
+        beepKind,
+        beepSeq: beepKind ? state.beepSeq + 1 : state.beepSeq,
+      };
+    }
+    default:
+      return state;
+  }
+}
+
+function App() {
+  const [state, dispatch] = useReducer(reducer, undefined, freshState);
+  const beep = useBeeper();
+  const lastTickRef = useRef<number>(Date.now());
+
+  useWakeLock(state.phase === 'running' && state.running);
+
+  useEffect(() => {
+    if (state.beepKind && state.sound) {
+      beep(state.beepKind === 'advance' ? 880 : 520);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.beepSeq]);
+
+  useEffect(() => {
+    if (!(state.phase === 'running' && state.running)) return;
+    lastTickRef.current = Date.now();
+
+    function runTick() {
+      const now = Date.now();
+      const elapsedSec = Math.floor((now - lastTickRef.current) / 1000);
+      if (elapsedSec < 1) return;
+      lastTickRef.current += elapsedSec * 1000;
+      dispatch({ type: 'TICK', elapsedSec });
+    }
+
+    const id = window.setInterval(runTick, 250);
+    document.addEventListener('visibilitychange', runTick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', runTick);
+    };
+  }, [state.phase, state.running]);
+
+  const theme = THEMES[state.theme];
+  const block = state.blocks[state.i];
+  const next = state.blocks[state.i + 1];
+  const isRunningPhase = state.phase === 'running';
+
+  function handleNewPractice() {
+    if (state.phase === 'running' && !window.confirm('Start a new practice? This will replace the current schedule.')) {
+      return;
+    }
+    dispatch({ type: 'NEW_PRACTICE' });
+  }
+
+  return (
+    <div
+      className="phone-shell"
+      style={
+        {
+          background: theme.bg,
+          color: theme.text,
+          '--accent': theme.accent,
+          '--accent-text': theme.accentText,
+          '--bg': theme.bg,
+          '--text': theme.text,
+        } as CSSProperties
+      }
+    >
+      <Header
+        title={state.title}
+        isRunningPhase={isRunningPhase}
+        blockNum={block ? `Block ${block.n} / ${state.blocks.length}` : ''}
+        mutedText={theme.muted}
+        onEdit={() => dispatch({ type: 'OPEN_EDITOR' })}
+        onNew={handleNewPractice}
+      />
+
+      <ThemeSwatches theme={state.theme} onSelect={(id) => dispatch({ type: 'SET_THEME', id })} />
+
+      {state.phase === 'setup' && (
+        <SetupScreen
+          title={state.title}
+          onTitleChange={(val) => dispatch({ type: 'SET_TITLE', val })}
+          blocks={state.blocks}
+          onLabelChange={(idx, val) => dispatch({ type: 'SET_BLOCK_LABEL', idx, val })}
+          onDurChange={(idx, val) => dispatch({ type: 'SET_BLOCK_DUR', idx, val })}
+          onRemove={(idx) => dispatch({ type: 'REMOVE_BLOCK', idx })}
+          onAddBlock={() => dispatch({ type: 'ADD_BLOCK' })}
+          onStart={() => dispatch({ type: 'START_PRACTICE' })}
+          onImport={(blocks) => dispatch({ type: 'IMPORT_BLOCKS', blocks })}
+        />
+      )}
+
+      {state.phase === 'running' && block && (
+        <RunningScreen
+          theme={theme}
+          block={block}
+          next={next}
+          secs={state.secs}
+          running={state.running}
+          sound={state.sound}
+          onToggleRun={() => dispatch({ type: 'TOGGLE_RUN' })}
+          onBack={() => dispatch({ type: 'BACK' })}
+          onToggleSound={() => dispatch({ type: 'TOGGLE_SOUND' })}
+        />
+      )}
+
+      {state.showEditor && (
+        <EditorModal
+          blocks={state.blocks}
+          onLabelChange={(idx, val) => dispatch({ type: 'SET_BLOCK_LABEL', idx, val })}
+          onDurChange={(idx, val) => dispatch({ type: 'SET_BLOCK_DUR', idx, val })}
+          onRemove={(idx) => dispatch({ type: 'REMOVE_BLOCK', idx })}
+          onAddBlock={() => dispatch({ type: 'ADD_BLOCK' })}
+          onDone={() => dispatch({ type: 'CLOSE_EDITOR' })}
+        />
+      )}
+    </div>
+  );
+}
+
+export default App;
