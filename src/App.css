@@ -10,6 +10,30 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Landing */
+
+.landing-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  padding: 22px;
+}
+
+.landing-logo {
+  width: min(70%, 260px);
+  height: auto;
+}
+
+.btn.landing-button {
+  flex: initial;
+  width: 100%;
+  max-width: 280px;
+  padding: 16px;
+}
+
 /* Header */
 
 .header-row {

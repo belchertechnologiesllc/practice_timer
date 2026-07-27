@@ -8,6 +8,7 @@ import { useBeeper } from './hooks/useBeeper';
 import { useCountdownAudio } from './hooks/useCountdownAudio';
 import { useWakeLock } from './hooks/useWakeLock';
 import { Header } from './components/Header';
+import { LandingScreen } from './components/LandingScreen';
 import { SetupScreen } from './components/SetupScreen';
 import { RunningScreen } from './components/RunningScreen';
 import { EditorModal } from './components/EditorModal';
@@ -42,7 +43,12 @@ function freshState(): State {
   };
 }
 
+function initialState(): State {
+  return { ...freshState(), phase: 'landing' };
+}
+
 type Action =
+  | { type: 'ENTER_APP' }
   | { type: 'SET_TITLE'; val: string }
   | { type: 'SET_BLOCK_LABEL'; idx: number; val: string }
   | { type: 'SET_BLOCK_DUR'; idx: number; val: string }
@@ -70,6 +76,8 @@ function reindexAfterChange(prevBlocks: Block[], prevIndex: number, newBlocks: B
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
+    case 'ENTER_APP':
+      return { ...state, phase: 'setup' };
     case 'SET_TITLE':
       return { ...state, title: action.val };
     case 'SET_BLOCK_LABEL':
@@ -196,7 +204,7 @@ function reducer(state: State, action: Action): State {
 }
 
 function App() {
-  const [state, dispatch] = useReducer(reducer, undefined, freshState);
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const { beep, unlock: unlockBeep } = useBeeper();
   const { play: playCountdown, unlock: unlockCountdown } = useCountdownAudio();
   const lastTickRef = useRef<number>(Date.now());
@@ -261,14 +269,18 @@ function App() {
         } as CSSProperties
       }
     >
-      <Header
-        title={state.title}
-        isRunningPhase={isRunningPhase}
-        blockNum={block ? `Block ${block.n} / ${state.blocks.length}` : ''}
-        mutedText={theme.muted}
-        onEdit={() => dispatch({ type: 'OPEN_EDITOR' })}
-        onNew={handleNewPractice}
-      />
+      {state.phase !== 'landing' && (
+        <Header
+          title={state.title}
+          isRunningPhase={isRunningPhase}
+          blockNum={block ? `Block ${block.n} / ${state.blocks.length}` : ''}
+          mutedText={theme.muted}
+          onEdit={() => dispatch({ type: 'OPEN_EDITOR' })}
+          onNew={handleNewPractice}
+        />
+      )}
+
+      {state.phase === 'landing' && <LandingScreen onEnter={() => dispatch({ type: 'ENTER_APP' })} />}
 
       {state.phase === 'setup' && (
         <SetupScreen

@@ -14,6 +14,7 @@ Design reference: [`design_handoff_practice_timer/`](./design_handoff_practice_t
 
 ## Features
 
+- Landing screen on open (team logo + "Get Started") before the setup screen.
 - Editable schedule: any number of blocks, 1–60 min each, drag-to-reorder in both the setup screen and the mid-practice editor.
 - Import a schedule from an uploaded PDF or Excel file (best-effort — review after import).
 - Navy/gold color theme.

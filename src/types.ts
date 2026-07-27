@@ -5,4 +5,4 @@ export interface Block {
   label: string;
 }
 
-export type Phase = 'setup' | 'running';
+export type Phase = 'landing' | 'setup' | 'running';
