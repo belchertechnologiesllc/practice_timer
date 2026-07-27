@@ -18,7 +18,7 @@ Design reference: [`design_handoff_practice_timer/`](./design_handoff_practice_t
 - Import a schedule from an uploaded PDF or Excel file (best-effort — review after import).
 - Four color themes, switchable instantly.
 - Sound warning at 15 seconds remaining in a block, plus the full-screen color + sound alert in the last 5 seconds, and a beep on block change.
-- Pause/Resume, Back (restart previous block), and mid-practice schedule editing.
+- Pause/Resume, Back (restart previous block), Skip (end the current block early and jump to the next), and mid-practice schedule editing.
 - Keeps the screen awake while a practice is running (Screen Wake Lock API).
 - Timestamp-based countdown that resyncs correctly after the phone locks or the tab is backgrounded.
 - Installable to a phone's home screen; works offline after first load.

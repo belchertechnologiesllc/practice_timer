@@ -10,6 +10,7 @@ interface Props {
   sound: boolean;
   onToggleRun: () => void;
   onBack: () => void;
+  onSkip: () => void;
   onToggleSound: () => void;
 }
 
@@ -22,6 +23,7 @@ export function RunningScreen({
   sound,
   onToggleRun,
   onBack,
+  onSkip,
   onToggleSound,
 }: Props) {
   const isAlert = secs <= 5;
@@ -58,6 +60,9 @@ export function RunningScreen({
           </button>
           <button type="button" className="btn btn-solid btn-wide" onClick={onToggleRun}>
             {running ? 'Pause' : 'Resume'}
+          </button>
+          <button type="button" className="btn btn-outline" onClick={onSkip}>
+            Skip
           </button>
         </div>
       </div>

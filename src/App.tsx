@@ -57,6 +57,7 @@ type Action =
   | { type: 'NEW_PRACTICE' }
   | { type: 'TOGGLE_RUN' }
   | { type: 'BACK' }
+  | { type: 'SKIP' }
   | { type: 'TOGGLE_SOUND' }
   | { type: 'OPEN_EDITOR' }
   | { type: 'CLOSE_EDITOR' }
@@ -124,6 +125,18 @@ function reducer(state: State, action: Action): State {
     case 'BACK': {
       const prevI = Math.max(state.i - 1, 0);
       return { ...state, i: prevI, secs: state.blocks[prevI].dur * 60 };
+    }
+    case 'SKIP': {
+      const lastIdx = state.blocks.length - 1;
+      const nextI = Math.min(state.i + 1, lastIdx);
+      const advanced = nextI !== state.i;
+      return {
+        ...state,
+        i: nextI,
+        secs: state.blocks[nextI].dur * 60,
+        beepKind: advanced ? 'advance' : state.beepKind,
+        beepSeq: advanced ? state.beepSeq + 1 : state.beepSeq,
+      };
     }
     case 'TOGGLE_SOUND':
       return { ...state, sound: !state.sound };
@@ -291,6 +304,7 @@ function App() {
             dispatch({ type: 'TOGGLE_RUN' });
           }}
           onBack={() => dispatch({ type: 'BACK' })}
+          onSkip={() => dispatch({ type: 'SKIP' })}
           onToggleSound={() => dispatch({ type: 'TOGGLE_SOUND' })}
         />
       )}
