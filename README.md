@@ -22,6 +22,7 @@ Design reference: [`design_handoff_practice_timer/`](./design_handoff_practice_t
 - Pause/Resume, Back (restart previous block), Skip (end the current block early and jump to the next), and mid-practice schedule editing.
 - Keeps the screen awake while a practice is running (Screen Wake Lock API).
 - Timestamp-based countdown that resyncs correctly after the phone locks or the tab is backgrounded.
+- The whole app state (schedule, current block, remaining time, running/paused) is persisted to localStorage and restored from wall-clock time on reload — so it picks back up correctly even if the phone's screen locks, the app is switched away from, or the browser fully reloads the page (mobile browsers often do this to backgrounded tabs to save memory).
 - Installable to a phone's home screen; works offline after first load.
 
 ## Developing

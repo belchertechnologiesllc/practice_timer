@@ -4,6 +4,9 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { Block, Phase } from './types';
 import { createDefaultBlocks, DEFAULT_TITLE } from './defaultSchedule';
 import { THEME } from './theme';
+import { advanceByElapsed } from './lib/scheduleClock';
+import { loadState, saveState } from './lib/persistence';
+import type { PersistedState } from './lib/persistence';
 import { useBeeper } from './hooks/useBeeper';
 import { useCountdownAudio } from './hooks/useCountdownAudio';
 import { useWakeLock } from './hooks/useWakeLock';
@@ -43,7 +46,31 @@ function freshState(): State {
   };
 }
 
+function restoreFromPersisted(p: PersistedState): State {
+  const blocks = p.blocks;
+  let i = Math.max(Math.min(p.i, blocks.length - 1), 0);
+  let secs = p.secs;
+  if (p.phase === 'running' && p.running) {
+    const elapsedSec = Math.round((Date.now() - p.savedAt) / 1000);
+    ({ i, secs } = advanceByElapsed(blocks, i, secs, elapsedSec));
+  }
+  return {
+    blocks,
+    title: p.title,
+    phase: p.phase,
+    i,
+    secs,
+    running: p.running,
+    sound: p.sound,
+    showEditor: false,
+    beepSeq: 0,
+    beepKind: null,
+  };
+}
+
 function initialState(): State {
+  const persisted = loadState();
+  if (persisted) return restoreFromPersisted(persisted);
   return { ...freshState(), phase: 'landing' };
 }
 
@@ -174,20 +201,7 @@ function reducer(state: State, action: Action): State {
       } else {
         // Catching up after the tab/screen was backgrounded — fast-forward
         // silently rather than replaying every missed second's beep.
-        let remaining = elapsed;
-        while (remaining > 0) {
-          if (secs > remaining) {
-            secs -= remaining;
-            remaining = 0;
-          } else if (i < lastIdx) {
-            remaining -= secs;
-            i += 1;
-            secs = state.blocks[i].dur * 60;
-          } else {
-            secs = 0;
-            remaining = 0;
-          }
-        }
+        ({ i, secs } = advanceByElapsed(state.blocks, i, secs, elapsed));
       }
 
       return {
@@ -242,6 +256,43 @@ function App() {
       document.removeEventListener('visibilitychange', runTick);
     };
   }, [state.phase, state.running]);
+
+  // Persist so the countdown survives the screen locking, the browser
+  // backgrounding/discarding the tab, or the app just being closed and
+  // reopened later — restored from wall-clock time in initialState above.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  function persistNow(s: State) {
+    saveState({
+      blocks: s.blocks,
+      title: s.title,
+      phase: s.phase,
+      i: s.i,
+      secs: s.secs,
+      running: s.running,
+      sound: s.sound,
+      savedAt: Date.now(),
+    });
+  }
+
+  useEffect(() => {
+    persistNow(state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.blocks, state.title, state.phase, state.i, state.secs, state.running, state.sound]);
+
+  useEffect(() => {
+    function flush() {
+      persistNow(stateRef.current);
+    }
+    document.addEventListener('visibilitychange', flush);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', flush);
+      window.removeEventListener('pagehide', flush);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const theme = THEME;
   const block = state.blocks[state.i];
