@@ -231,6 +231,20 @@ function App() {
   }
 
   useEffect(() => {
+    // A practice restored mid-run after a screen lock / reload comes back
+    // already "running" — there's no Start/Resume tap to unlock audio on.
+    // Unlock on the very first tap anywhere so a later 15s clip or
+    // block-change beep isn't silently blocked by the browser's autoplay
+    // policy for the rest of that session.
+    function unlockOnFirstInteraction() {
+      unlockAudio();
+    }
+    document.addEventListener('pointerdown', unlockOnFirstInteraction, { once: true });
+    return () => document.removeEventListener('pointerdown', unlockOnFirstInteraction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (!state.beepKind || !state.sound) return;
     if (state.beepKind === 'advance') beep(880);
     else if (state.beepKind === 'warn') playCountdown();
